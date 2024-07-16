@@ -10,22 +10,12 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 
 intents = discord.Intents.default()
 intents.message_content = True
+intents.reactions = True
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
 
 def run_bot():
-    async def get_png(message):
-        # check if message attch is a png
-        texture_url = message.attachments[0].url.split("?ex")[0]
-        print(message.attachments[0].url)
-        
-        print(texture_url)
-        if texture_url.endswith(".png"):
-            await message.channel.send(texture_url)
-            await message.channel.send("WAAAAAAAAAA")
-        else:
-            await message.channel.send("File must be png")
 
     def gather_configini():
         config = configparser.ConfigParser()
@@ -35,6 +25,20 @@ def run_bot():
     def request_option(config_option: str):
         config: configparser.ConfigParser = gather_configini()
         return config.get("CHANNEL", config_option)
+        
+    
+    async def get_png(message):
+        # check if message attch is a png
+        texture_url = message.attachments[0].url.split("?ex")[0]
+        print(message.attachments[0].url)
+        
+        print(texture_url)
+        if texture_url.endswith(".png"):
+            request_option("staff_channel")
+            staff_channel: discord.channel = await client.fetch_channel(int(request_option("staff_channel")))
+            await staff_channel.send(texture_url)
+        else:
+            await message.channel.send("File must be png")
 
     def set_suggest_channel(id: int):
         config: configparser.ConfigParser = gather_configini()
@@ -81,7 +85,7 @@ def run_bot():
 
         else:  
             return False
-    
+
 
     async def check_if_staff(user: discord.user, message: discord.Message) -> bool:
         roles = (await message.guild.fetch_member(user.id)).roles
@@ -98,20 +102,18 @@ def run_bot():
 
 
     @client.event
-    async def on_message(message):
+    async def on_message(message: discord.Message):
         if message.author == client.user:
             return
 
         if await client.fetch_user(1191521256722399272) == message.author:
             return
 
-        await message.channel.send("monke0")
         if message.attachments:
-            await message.channel.send("monke1")
-
-            if message.channel.id == request_option("suggestions_channel"):
-                await message.channel.send("monke2")
+            if message.channel.id == int(request_option("suggestions_channel")):
                 await get_png(message)
+                await approve_suggestion()
+
 
         if message.content.startswith("!setsuggest"):
             if await checker(message):
@@ -152,13 +154,42 @@ def run_bot():
         if message.content.startswith("!test"):
             await message.channel.send(await check_if_owner(message))
 
+    async def approved(payload: discord.RawReactionActionEvent):
+        channel: discord.channel = client.get_channel(payload.channel_id)
+        message: discord.Message = await channel.fetch_message(payload.message_id)
+        approved_emoji = "👍"
+        denied_emoji = "👎"
 
-    def get_img_for_message(Message):
-        raise NotImplementedError
+        if await checker(message):
+            if approved_emoji in [reaction.emoji for reaction in message.reactions]:
+                await message.reply(f"Suggestion approved by <@{payload.user_id}>!")
+                return True
+
+            if denied_emoji in [reaction.emoji for reaction in message.reactions]:
+                await message.reply(f"Suggestion denied by <@{payload.user_id}>!")
+                return False
+        if not await checker(message):
+            await message.channel.send("you are not authorized to approve")
+            return
+        
+
+    @client.event
+    async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
+        if payload.member.bot:
+            return
+        
+        channel: discord.channel = client.get_channel(payload.channel_id)
+        message: discord.Message = await channel.fetch_message(payload.message_id)
+        user: discord.user = await client.fetch_user(payload.user_id)
+
+
+        await approved(payload)
 
     @client.event
     async def on_ready():
         print(f"{client.user} im in")
+
+        
 
     client.run(TOKEN)
 

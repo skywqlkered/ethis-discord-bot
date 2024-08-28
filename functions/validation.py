@@ -4,11 +4,25 @@ import requests
 from io import BytesIO
 
 
+async def get_content(message: discord.Message) -> tuple[str, str]:
+    content = message.content
+    split_content = content.split(", ")
+    if len(split_content) != 2:
+        await message.channel.send(
+            "Please include your item like this: **item_name, model_name**"
+        )
+        return
+
+    if len(split_content) == 2:
+        return split_content
+
+
 def gather_mc_items() -> list[str]:
     file = open("list_of_items.txt", "r")
     mc_items = file.read()
     file.close()
     return list(mc_items.split(", "))
+
 
 def get_pngs(message: discord.Message) -> discord.Attachment:
     pngs: list = []
@@ -18,7 +32,8 @@ def get_pngs(message: discord.Message) -> discord.Attachment:
 
     return pngs
 
-def get_jsons(message: discord.Message) -> discord.Attachment:
+
+def get_jsons(message: discord.Message) -> list[discord.Attachment]:
     jsons: list = []
     for attach in message.attachments:
         if attach.filename.endswith(".json"):
@@ -26,14 +41,25 @@ def get_jsons(message: discord.Message) -> discord.Attachment:
 
     return jsons
 
+
 async def validate_suggestion(message: discord.Message) -> bool:
     if len(message.attachments) == 0:
         await message.channel.send("Please attach an image")
         return False
 
-    if message.content not in gather_mc_items():
-        await message.channel.send("Please include an item from the list")
+    # Correctly await the coroutine and then perform the operation
+    content = await get_content(message)  # Await the coroutine to get the result
+    if content is None:  # Check if the result is not None
         return False
+
+    if content is not None:  # Check if the result is not None
+        if (
+            content[0] not in gather_mc_items()
+        ):  # Now you can safely subscript the content
+            await message.channel.send(
+                "Please include an item in this format: **item_name, model_name**"
+            )
+            return False
 
     pngs = get_pngs(message)
     jsons = get_jsons(message)
@@ -42,9 +68,9 @@ async def validate_suggestion(message: discord.Message) -> bool:
         await message.channel.send("Please only attach one image")
         return False
 
-    if len(jsons) != 1:
+    if len(jsons) > 1:
         await message.channel.send("Please only attach one json")
-
+        return False
 
     attachment = pngs[0]
 
@@ -69,10 +95,9 @@ async def validate_suggestion(message: discord.Message) -> bool:
             )
             return False
 
-        await message.reply("Suggested!")
-        return True
-
     except Exception as e:
         await message.channel.send(f"An error occurred while processing the image: {e}")
         return False
 
+    else:
+        return True

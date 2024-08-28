@@ -1,18 +1,17 @@
 import os
-import json
-from PIL import Image
-from io import BytesIO
-import requests
+import shutil
 
 import discord
 from dotenv import load_dotenv
 import configparser
 import dropbox
+from discord.ext import tasks
+
 
 from functions.admin import *
 from functions.validation import *
-from functions.json import *
-from functions.dropbox import *
+from functions.json_functions import *
+from functions.dropbox_functions import *
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -23,21 +22,8 @@ intents.reactions = True
 client = discord.Client(intents=intents)
 
 
-def gather_configini() -> configparser.ConfigParser:
-    global current_guild
-    config = configparser.ConfigParser()
-    config.read("config.ini")
-    return config
-
-
-def request_option(config_option: str):
-    config: configparser.ConfigParser = gather_configini()
-    return config.get("CHANNEL", config_option)
-
-
 async def get_previous(message: discord.message):
     previous_msg = None
-    config = gather_configini()
     staff_channel: discord.channel = await client.fetch_channel(
         int(request_option("staff_channel"))
     )
@@ -47,19 +33,38 @@ async def get_previous(message: discord.message):
     return previous_msg
 
 
-async def send_png(message: discord.Message) -> bool:
-    # check if message attch is a png
+async def get_png(message: discord.Message):
     png: discord.Attachment = get_pngs(message)[0]
-    texture_url = png.url.split("?ex")[0]
+    texture_url: str = png.url.split("?ex")[0]
+    return texture_url
 
-    request_option("staff_channel")
+
+async def send_png(message: discord.Message) -> bool:
+
+    await message.reply("Suggested!")
+
+    url = await get_png(message)
     staff_channel: discord.channel = await client.fetch_channel(
         int(request_option("staff_channel"))
     )
+
+    content = await get_content(message)
     await staff_channel.send(
-        f"{message.author.mention} suggested for item {message.content}: {texture_url}"
+        f"{message.author.mention} suggested for item **{content[0]}**: {url}"
     )
     return True
+
+
+async def no_john(message: discord.Message):
+    attach = get_pngs(message)[0]
+    content = await get_content(message)
+    if not await download_attach(attach, content[1]):
+        await message.channel.send("This model already exists")
+        return
+
+    edit_or_create(
+        parent="generated", placeholder_model=content[1], placeholder_texture=content[0]
+    )
 
 
 @client.event
@@ -75,25 +80,51 @@ async def on_message(message: discord.Message):
     if message.attachments:
         if message.channel.id == int(request_option("suggestions_channel")):
             if await validate_suggestion(message):
-                if await send_png(message):
-                    if len(get_jsons(message)) == 1:
-                        print("this will activate the included json function, and do some weird stuff with blockbench models")
-                        raise NotImplementedError
-                    if len(get_jsons(message)) == 0:
-                        print("this will activate the normal json function")
-                        raise NotImplementedError
+                if len(get_jsons(message)) == 1:
+                    print(
+                        "this will activate the included json function, and do some weird stuff with blockbench models"
+                    )
+                    raise NotImplementedError
+                if len(get_jsons(message)) == 0:
+                    await no_john(message)
+
+                await send_png(message)
+            
 
     if message.content.startswith("!setsuggest"):
-        if await staff_checker(message):
+        if await perm_check(message.author, message):
             if len(message.channel_mentions) != 0:
                 set_suggest_channel(message.channel_mentions[0].id)
+                await message.channel.send (f"Set suggestion channel to <#{message.channel_mentions[0].id}>")
             else:
                 await message.channel.send("Please mention a channel")
 
+    if message.content.startswith("!send"):
+        src = r"C:\Users\Julian\Documents\Github\ethis-discord-bot\server_pack"
+        dest = r"C:\Users\Julian\curseforge\minecraft\Instances\fabric 1.20.2\resourcepacks"
+
+        # Check if the source directory exists
+        if not os.path.exists(src):
+            return False
+
+        # Define the destination directory
+        dest_path = os.path.join(dest, "server_pack")
+
+        # Copy the server_pack directory
+        try:
+            if os.path.exists(dest_path):
+                shutil.rmtree(dest_path)  # Remove the existing directory
+            shutil.copytree(src, dest_path)
+            return True
+        except Exception as e:
+            return False
+
     if message.content.startswith("!setstaff"):
-        if await staff_checker(message):
+        if await perm_check(message.author, message):
             if len(message.channel_mentions) != 0:
                 set_staff_channel(message.channel_mentions[0].id)
+                await message.channel.send (f"Set staff channel to <#{message.channel_mentions[0].id}>")
+
             else:
                 await message.channel.send("Please mention a channel")
 
@@ -106,16 +137,19 @@ async def on_message(message: discord.Message):
         await message.channel.send(f"<#{sgst_channel}>")
 
     if message.content.startswith("!addstaff"):
-        if await staff_checker(message):
+        if await perm_check(message.author, message):
             if len(message.role_mentions) != 0:
                 add_staff(message.role_mentions[0].id)
+                await message.channel.send (f"Added {message.role_mentions[0]} to staff")
+
             else:
                 await message.channel.send("Please mention a user")
 
     if message.content.startswith("!removestaff"):
-        if await staff_checker(message):
+        if await perm_check(message.author,message):
             if len(message.role_mentions) != 0:
                 remove_staff(message.role_mentions[0].id)
+                await message.channel.send (f"Removed {message.role_mentions[0]} from staff")
             else:
                 await message.channel.send("Please mention a user")
 
@@ -134,11 +168,12 @@ async def on_message(message: discord.Message):
 
 async def approved(payload: discord.RawReactionActionEvent):
     channel: discord.channel = client.get_channel(payload.channel_id)
+    approver = await client.fetch_user(payload.user_id)
     message: discord.Message = await channel.fetch_message(payload.message_id)
     approved_emoji = "👍"
     denied_emoji = "👎"
 
-    if await staff_checker(message):
+    if await perm_check(approver, message):
         if approved_emoji in [reaction.emoji for reaction in message.reactions]:
             await message.reply(f"Suggestion approved by <@{payload.user_id}>!")
             return True
@@ -146,7 +181,7 @@ async def approved(payload: discord.RawReactionActionEvent):
         if denied_emoji in [reaction.emoji for reaction in message.reactions]:
             await message.reply(f"Suggestion denied by <@{payload.user_id}>!")
             return False
-    if not await staff_checker(message):
+    if not await perm_check(approver, message):
         await message.channel.send("you are not authorized to approve")
         return
 
@@ -164,9 +199,14 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
         raise NotImplementedError
 
 
+@tasks.loop(seconds=3600.0)
+async def update_pack():
+    upload_dropbox()
+
 @client.event
 async def on_ready():
     print(f"{client.user} im in")
+    update_pack.start()
 
 
 client.run(TOKEN)

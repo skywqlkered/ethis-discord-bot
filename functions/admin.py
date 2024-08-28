@@ -1,6 +1,11 @@
 import configparser
 import discord
 
+
+def request_option(config_option: str):
+    config: configparser.ConfigParser = gather_configini()
+    return config.get("CHANNEL", config_option)
+
 def gather_configini():
     config = configparser.ConfigParser()
     config.read("config.ini")
@@ -24,7 +29,6 @@ def add_staff(id: int):
     config.read("config.ini")
     staff_str = config.get("CHANNEL", "staff_roles") + "," + str(id)
     config.set("CHANNEL", "staff_roles", staff_str)
-    print ("staff added")
     with open("config.ini", "w") as configfile:
         config.write(configfile)
 
@@ -39,30 +43,15 @@ def remove_staff(id: int):
     if rem_staff.endswith(","):
         rem_staff = rem_staff[:-1]
     config.set("CHANNEL", "staff_roles", rem_staff)
-    print ("staff removed")
     
     with open("config.ini", "w") as configfile:
         config.write(configfile)
 
-async def check_if_owner(Message: discord.Message) -> bool:
-    if Message.author.id == Message.guild.owner_id:
-
+async def perm_check(userman: discord.User, message: discord.Message):
+    if userman.id == message.guild.owner_id:
         return True
-
-    else:  
-        return False
-
-
-async def check_if_staff(user: discord.user, message: discord.Message) -> bool:
-    roles = (await message.guild.fetch_member(user.id)).roles
-    config = gather_configini()
-    staff_list = (config.get("CHANNEL", "staff_roles")).split(",")
-    for role in roles:
-        if str(role.id) in staff_list:
+    for role in userman.roles:
+        x = str(role.id)
+        if x in request_option("staff_roles").split(","):
             return True
-
     return False
-
-async def staff_checker(message):
-    return await check_if_owner(message) or await check_if_staff(message.author, message)
-

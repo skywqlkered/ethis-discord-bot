@@ -4,19 +4,32 @@ import discord
 import shutil
 
 
-async def download_attach(attach: discord.Attachment, model_name: str):
-    await attach.save(model_name + ".png")
-    if attach.filename.endswith(".png"):
-        if not move_texture(model_name):
-            return False
-        else :
-            return True
+async def download_attach(attach: discord.Attachment, model_name: str, state: bool):
+    # state = True is a png
+    # state = False is a json
+    if state: 
+        await attach.save(model_name + ".png")
+        if attach.filename.endswith(".png"):
+            if not move_texture(model_name):
+                return False
+            else:
+                return True
+    if not state:
+        await attach.save(model_name + ".json")
+        if attach.filename.endswith(".json"):
+            if not move_model(model_name):
+                return False
+            else:
+                return True
 
-
-def move_texture(filename: str):
-    
+def get_path():
     dirname = os.path.dirname(__file__)
     dirname = dirname.split("functions")[0]
+
+    return dirname
+
+def move_texture(filename: str):
+    dirname = get_path()
     src = os.path.join(dirname, filename + ".png")
     item_dir = os.path.join(
         dirname, "server_pack", "assets", "minecraft", "textures", "item"
@@ -26,33 +39,29 @@ def move_texture(filename: str):
 
     if not os.path.exists(destination_path):
         shutil.move(src, destination_path)
+        return True
     else:
         return False
+
     
-    return True
-
-
-
-def get_path():
-    dirname = os.path.dirname(__file__)
-    dirname = dirname.split("functions")[0]
-
-    return dirname
 
 
 def move_model(model_name: str):
-    dirname = os.path.dirname(__file__)
-    dirname = dirname.split("functions")[0]
+    dirname = get_path()
     src = os.path.join(dirname, model_name + ".json")
     item_dir = os.path.join(
         dirname, "server_pack", "assets", "minecraft", "models", "item"
     )
 
-    shutil.move(src, item_dir)
+    destination_path = os.path.join(item_dir, model_name + ".json")
 
+    if not os.path.exists(destination_path):
+        shutil.move(src, destination_path)
+        return True
 
-
-# move_texture("rat")
+    else:
+        return False
+    
 
 
 def generate_model_json(parent, placeholder_model):
@@ -92,9 +101,7 @@ def create_new(parent, placeholder_texture, placeholder_model):
     move_model(placeholder_texture)
 
 
-def edit_existing_override(
-    parent, placeholder_texture, placeholder_model
-):
+def edit_existing_override(parent, placeholder_texture: str, placeholder_model):
     path = get_path()
     model_path = os.path.join(
         path,
@@ -138,3 +145,7 @@ def edit_or_create(parent, placeholder_texture, placeholder_model):
     else:
         create_new(parent, placeholder_texture, placeholder_model)
 
+def create_new_override_with_john(parent, placeholder_texture, placeholder_model):
+    move_model(placeholder_model)
+    generate_item_json(parent, placeholder_texture, placeholder_model)
+    move_model(placeholder_texture)

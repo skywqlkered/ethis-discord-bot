@@ -1,0 +1,36 @@
+{
+	"credit": "Made with Blockbench",
+	"textures": {
+		"0": "block/amethyst_block",
+		"1": "block/campfire_log_lit",
+		"particle": "block/amethyst_block"
+	},
+	"elements": [
+		{
+			"from": [7, 0, 7],
+			"to": [8, 20, 9],
+			"rotation": {"angle": 0, "axis": "y", "origin": [7, 0, 7]},
+			"faces": {
+				"north": {"uv": [0, 0, 1, 16], "texture": "#1"},
+				"east": {"uv": [0, 0, 2, 16], "texture": "#1"},
+				"south": {"uv": [0, 0, 1, 16], "texture": "#1"},
+				"west": {"uv": [9, 0, 13, 16], "texture": "#1"},
+				"up": {"uv": [0, 0, 1, 2], "texture": "#1"},
+				"down": {"uv": [0, 0, 1, 2], "texture": "#1"}
+			}
+		},
+		{
+			"from": [6.75, 4, 3],
+			"to": [8.25, 6, 13],
+			"rotation": {"angle": 0, "axis": "y", "origin": [5, 4, 7]},
+			"faces": {
+				"north": {"uv": [0, 0, 1.5, 2], "texture": "#0"},
+				"east": {"uv": [0, 0, 10, 2], "texture": "#0"},
+				"south": {"uv": [0, 0, 1.5, 2], "texture": "#0"},
+				"west": {"uv": [0, 0, 10, 2], "texture": "#0"},
+				"up": {"uv": [0, 0, 1.5, 10], "texture": "#0"},
+				"down": {"uv": [0, 0, 1.5, 10], "texture": "#0"}
+			}
+		}
+	]
+}

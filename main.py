@@ -6,6 +6,8 @@ from dotenv import load_dotenv
 import configparser
 import dropbox
 from discord.ext import tasks
+from discord import app_commands
+from discord.ext import commands
 
 
 from functions.admin import *
@@ -38,7 +40,6 @@ async def get_png(message: discord.Message):
     texture_url: str = png.url.split("?ex")[0]
     return texture_url
 
-
 async def send_png(message: discord.Message) -> bool:
 
     await message.reply("Suggested!")
@@ -58,7 +59,7 @@ async def send_png(message: discord.Message) -> bool:
 async def no_john(message: discord.Message):
     attach = get_pngs(message)[0]
     content = await get_content(message)
-    if not await download_attach(attach, content[1]):
+    if not await download_attach(attach, content[1], True):
         await message.channel.send("This model already exists")
         return
 
@@ -66,6 +67,18 @@ async def no_john(message: discord.Message):
         parent="generated", placeholder_model=content[1], placeholder_texture=content[0]
     )
 
+async def john(message: discord.Message):
+    jsonattach = get_jsons(message)[0]
+    pngattach = get_pngs(message)[0]
+    content = await get_content(message)
+    if not await download_attach(jsonattach, content[0], False):
+        await message.channel.send("This model already exists")
+        return
+
+    if not await download_attach(pngattach, content[1], True):
+        await message.channel.send("This model already exists")
+        return
+    
 
 @client.event
 async def on_message(message: discord.Message):
@@ -77,19 +90,20 @@ async def on_message(message: discord.Message):
     ):  # buildly is banned
         return
 
-    if message.attachments:
-        if message.channel.id == int(request_option("suggestions_channel")):
+    if message.channel.id == int(request_option("suggestions_channel")):
+        if message.attachments:
             if await validate_suggestion(message):
                 if len(get_jsons(message)) == 1:
-                    print(
-                        "this will activate the included json function, and do some weird stuff with blockbench models"
-                    )
-                    raise NotImplementedError
+                    print("1")
+                    await john(message)
+                    print("2")
                 if len(get_jsons(message)) == 0:
                     await no_john(message)
 
                 await send_png(message)
             
+    if message.content.startswith("!refresh"):
+        upload_dropbox()
 
     if message.content.startswith("!setsuggest"):
         if await perm_check(message.author, message):

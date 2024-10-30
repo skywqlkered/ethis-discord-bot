@@ -1,5 +1,6 @@
 import configparser
 import discord
+import requests
 
 
 def request_option(config_option: str):
@@ -55,3 +56,28 @@ async def perm_check(userman: discord.User, message: discord.Message):
         if x in request_option("staff_roles").split(","):
             return True
     return False
+
+def get_online_players() -> list:
+    data = requests.get(
+        "https://api.mcsrvstat.us/3/66.59.209.46"
+    )
+    online = []
+    #check if (data.json()["players"])["list"] exits
+    if "list" not in (data.json()["players"]):
+        return "No players online"
+    
+    player_list: dict = (data.json()["players"])["list"]
+    for i in player_list:
+        online.append(i["name"] + "\n")
+
+    if len(online) == 0:
+        return "No players online"
+    
+    names = "".join(online) 
+    
+    return names
+
+if __name__ == "__main__":
+    print(get_online_players())
+    
+    

@@ -1,0 +1,6 @@
+discord==2.3.2
+configparser
+requests
+dropbox
+python-dotenv
+Pillow

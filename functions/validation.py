@@ -43,6 +43,16 @@ def get_jsons(message: discord.Message) -> list[discord.Attachment]:
 
 
 async def validate_suggestion(message: discord.Message) -> bool:
+    """
+    Validates a suggestion message in a Discord channel.
+    This function checks if the message contains the required attachments and if the attachments meet specific criteria.
+    It ensures that there is exactly one image attachment, optionally one JSON attachment, and that the image is square,
+    has dimensions that are powers of two, and has a valid color mode (RGB or RGBA).
+    Parameters:
+        message (discord.Message): The Discord message to validate.
+    Returns:
+        bool: True if the message is valid, False otherwise.
+    """
     if len(message.attachments) == 0:
         await message.channel.send("Please attach an image")
         return False
@@ -101,3 +111,6 @@ async def validate_suggestion(message: discord.Message) -> bool:
 
     else:
         return True
+
+def check_category(message: discord.Message) -> str:
+    return message.channel.category.name
